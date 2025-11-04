@@ -30,6 +30,15 @@ let selectedChargeForProperties = null;
 let isSimulationRunning = false;
 let simulationTime = 0;
 
+// 样式设置
+let styleSettings = {
+    fieldLineDensity: 16,
+    fieldLineWidth: 1.5,
+    showChargeValue: true,
+    showChargeNumber: true,
+    backgroundColor: 'cosmic'
+};
+
 // 性能优化：缓存最后计算的电荷状态
 let lastChargesHash = '';
 let equipotentialCache = null;
