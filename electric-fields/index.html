@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>电场模拟器</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        // 宇宙蓝背景
+                        cosmic: '#0f172a',
+                        // 深空紫背景
+                        deepspace: '#1e1b4b',
+                        // 霓虹青 - 正电荷
+                        neoncyan: '#00f5d4',
+                        // 深空紫 - 负电荷
+                        deepspacepurple: '#6c63ff',
+                        // 荧光蓝 - 电场线
+                        fluorescent: '#00d8ff',
+                        // 工具栏背景
+                        panel: 'rgba(30, 41, 59, 0.8)',
+                    },
+                    fontFamily: {
+                        'display': ['Orbitron', 'sans-serif'],
+                        'body': ['Inter', 'sans-serif'],
+                        'mono': ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+        
+        /* 电场线流动动画 */
+        .field-line {
+            animation: flow 3s linear infinite;
+        }
+        
+        @keyframes flow {
+            0% { stroke-dashoffset: 0; }
+            100% { stroke-dashoffset: 100; }
+        }
+        
+        /* 按钮动效 */
+        .tool-btn {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .tool-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: 0.5s;
+        }
+        
+        .tool-btn:hover::before {
+            left: 100%;
+        }
+        
+        .tool-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+        }
+        
+        .tool-btn:active {
+            transform: translateY(0);
+        }
+        
+        /* 电荷悬停效果 */
+        .charge:hover {
+            filter: brightness(1.2) drop-shadow(0 0 8px currentColor);
+        }
+        
+        /* 可折叠面板 */
+        .collapsible-panel {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+        
+        .collapsible-panel.expanded {
+            max-height: 500px;
+        }
+        
+        /* 电荷数值显示 */
+        .charge-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        /* 工具激活状态 */
+        .tool-active {
+            background-color: #7c3aed !important; /* 紫色强调色 */
+            box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.5);
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(124, 58, 237, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(124, 58, 237, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(124, 58, 237, 0); }
+        }
+        
+        /* 滑块样式 */
+        .slider {
+            -webkit-appearance: none;
+            height: 6px;
+            border-radius: 3px;
+            background: #4b5563;
+            outline: none;
+        }
+        
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #7c3aed;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #7c3aed;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        /* 浮动面板样式 */
+        .floating-panel {
+            transition: all 0.3s ease;
+        }
+        
+        .floating-panel:hover {
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+        }
+        
+        /* 复选框样式 */
+        input[type="checkbox"]:checked {
+            background-color: #7c3aed;
+            border-color: #7c3aed;
+        }
+        
+        /* 画布边框效果 */
+        .canvas-container {
+            border: 1px solid rgba(108, 99, 255, 0.3);
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+    </style>
+</head>
+<body class="bg-cosmic min-h-screen flex flex-col font-body">
+    <header class="bg-deepspace text-white p-4 shadow-2xl">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-3xl font-display flex items-center">
+                <i class="fas fa-bolt mr-3 text-fluorescent animate-pulse"></i>
+                <span class="bg-clip-text text-transparent bg-gradient-to-r from-neoncyan to-fluorescent">
+                    电场模拟器
+                </span>
+            </h1>
+            <div class="flex items-center space-x-4">
+                <div class="flex items-center bg-black bg-opacity-30 px-4 py-2 rounded-full">
+                    <div class="w-3 h-3 rounded-full bg-neoncyan mr-2 animate-pulse"></div>
+                    <span class="text-neoncyan font-medium">正电荷</span>
+                </div>
+                <div class="flex items-center bg-black bg-opacity-30 px-4 py-2 rounded-full">
+                    <div class="w-3 h-3 rounded-full bg-deepspacepurple mr-2 animate-pulse"></div>
+                    <span class="text-deepspacepurple font-medium">负电荷</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="flex flex-1 overflow-hidden">
+        <!-- 画布区域 -->
+        <div class="flex-1 relative overflow-hidden canvas-container">
+            <canvas id="simulation-canvas" class="absolute inset-0 w-full h-full"></canvas>
+            <!-- 准星指示器 -->
+            <div id="crosshair" class="absolute w-6 h-6 pointer-events-none hidden">
+                <div class="absolute top-1/2 left-0 right-0 h-0.5 bg-fluorescent opacity-70 transform -translate-y-1/2"></div>
+                <div class="absolute left-1/2 top-0 bottom-0 w-0.5 bg-fluorescent opacity-70 transform -translate-x-1/2"></div>
+                <div class="absolute top-1/2 left-1/2 w-2 h-2 border-2 border-fluorescent rounded-full transform -translate-x-1/2 -translate-y-1/2"></div>
+            </div>
+            
+            <!-- 加载蒙层 -->
+            <div id="loading-overlay" class="absolute inset-0 bg-black bg-opacity-50 hidden items-center justify-center">
+                <div class="text-white text-lg flex items-center">
+                    <i class="fas fa-spinner fa-spin mr-3 text-fluorescent"></i>
+                    正在计算电场...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 浮动控制面板 -->
+    <div id="tools-panel" class="floating-panel bg-panel backdrop-blur-sm p-4 rounded-xl shadow-2xl border border-gray-700">
+        <div class="panel-header flex justify-between items-center mb-3 cursor-move">
+            <h2 class="text-white text-lg font-semibold flex items-center">
+                <i class="fas fa-screwdriver-wrench mr-2 text-purple-400"></i> 工具
+            </h2>
+            <div class="flex space-x-1">
+                <button id="tools-minimize" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-minus"></i>
+                </button>
+                <button id="tools-close" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+        <div id="tools-content" class="space-y-3">
+            <div class="space-y-2">
+                <label class="text-gray-300 text-sm font-medium">电荷量 (q)</label>
+                <input type="range" id="charge-slider" min="-10" max="10" value="1" step="0.01" 
+                       class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer slider">
+                <div class="flex justify-between text-xs text-gray-400">
+                    <span>-10</span>
+                    <span id="charge-value">+1.0</span>
+                    <span>+10</span>
+                </div>
+            </div>
+            <button id="btn-add-charge" 
+                    class="tool-btn w-full bg-gray-700 text-white py-2.5 px-3 rounded-lg flex items-center justify-center font-medium">
+                <i class="fas fa-plus-circle mr-2"></i> 添加电荷
+            </button>
+            <button id="btn-clear" 
+                    class="tool-btn w-full bg-gray-700 text-white py-2.5 px-3 rounded-lg flex items-center justify-center font-medium border border-gray-600">
+                <i class="fas fa-broom mr-2"></i> 清除全部
+            </button>
+            <button id="btn-toggle-simulation" 
+                    class="tool-btn w-full bg-green-600 text-white py-2.5 px-3 rounded-lg flex items-center justify-center font-medium">
+                <i class="fas fa-play mr-2"></i> 开始模拟
+            </button>
+            <button id="btn-export-image" 
+                    class="tool-btn w-full bg-blue-600 text-white py-2.5 px-3 rounded-lg flex items-center justify-center font-medium">
+                <i class="fas fa-download mr-2"></i> 导出图片
+            </button>
+            <div class="flex space-x-2 pt-2">
+                <button id="btn-zoom-in" 
+                        class="tool-btn flex-1 bg-gray-700 text-white py-2 px-2 rounded-lg flex items-center justify-center font-medium">
+                    <i class="fas fa-search-plus"></i>
+                </button>
+                <button id="btn-zoom-out" 
+                        class="tool-btn flex-1 bg-gray-700 text-white py-2 px-2 rounded-lg flex items-center justify-center font-medium">
+                    <i class="fas fa-search-minus"></i>
+                </button>
+                <button id="btn-reset-view" 
+                        class="tool-btn flex-1 bg-gray-700 text-white py-2 px-2 rounded-lg flex items-center justify-center font-medium">
+                    <i class="fas fa-expand"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="presets-panel" class="floating-panel bg-panel backdrop-blur-sm p-4 rounded-xl shadow-2xl border border-gray-700">
+        <div class="panel-header flex justify-between items-center mb-3 cursor-move">
+            <h2 class="text-white text-lg font-semibold flex items-center">
+                <i class="fas fa-star mr-2 text-purple-400"></i> 预设场景
+            </h2>
+            <div class="flex space-x-1">
+                <button id="presets-minimize" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-minus"></i>
+                </button>
+                <button id="presets-close" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+        <div id="presets-content" class="space-y-3">
+            <select id="preset-selector" 
+                    class="w-full bg-gray-800 text-white border border-gray-700 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                <option value="" class="bg-gray-800">选择预设场景</option>
+                <option value="dipole" class="bg-gray-800">电偶极子</option>
+                <option value="quadrupole" class="bg-gray-800">四极子</option>
+                <option value="line" class="bg-gray-800">线状分布</option>
+            </select>
+            <button id="btn-load-preset" 
+                    class="tool-btn w-full bg-purple-600 text-white py-2 px-3 rounded-lg flex items-center justify-center font-medium">
+                <i class="fas fa-download mr-2"></i> 加载场景
+            </button>
+        </div>
+    </div>
+
+    <div id="view-panel" class="floating-panel bg-panel backdrop-blur-sm p-4 rounded-xl shadow-2xl border border-gray-700">
+        <div class="panel-header flex justify-between items-center mb-3 cursor-move">
+            <h2 class="text-white text-lg font-semibold flex items-center">
+                <i class="fas fa-eye mr-2 text-purple-400"></i> 视图
+            </h2>
+            <div class="flex space-x-1">
+                <button id="view-minimize" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-minus"></i>
+                </button>
+                <button id="view-close" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+        <div id="view-content" class="space-y-3">
+            <label class="flex items-center cursor-pointer">
+                <input type="checkbox" id="show-field-lines" checked class="mr-2 h-4 w-4 text-purple-500 rounded focus:ring-purple-500">
+                <span class="text-gray-300 text-sm">显示电场线</span>
+            </label>
+            <label class="flex items-center cursor-pointer">
+                <input type="checkbox" id="show-equipotentials" class="mr-2 h-4 w-4 text-purple-500 rounded focus:ring-purple-500">
+                <span class="text-gray-300 text-sm">显示等势面</span>
+            </label>
+            <label class="flex items-center cursor-pointer">
+                <input type="checkbox" id="show-vectors" class="mr-2 h-4 w-4 text-purple-500 rounded focus:ring-purple-500">
+                <span class="text-gray-300 text-sm">显示电场矢量</span>
+            </label>
+        </div>
+    </div>
+
+    <div id="instructions-panel" class="floating-panel bg-panel backdrop-blur-sm p-4 rounded-xl shadow-2xl border border-gray-700">
+        <div class="panel-header flex justify-between items-center mb-3 cursor-move">
+            <h3 class="text-white text-lg font-semibold flex items-center">
+                <i class="fas fa-info-circle mr-2 text-purple-400"></i> 使用说明
+            </h3>
+            <div class="flex space-x-1">
+                <button id="instructions-minimize" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-minus"></i>
+                </button>
+                <button id="instructions-close" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+        <div id="instructions-content">
+            <ul class="text-gray-300 text-sm space-y-2">
+                <li class="flex items-start">
+                    <i class="fas fa-mouse-pointer text-purple-400 mt-1 mr-2"></i>
+                    <span>拖动滑块选择电荷量，点击画布添加电荷</span>
+                </li>
+                <li class="flex items-start">
+                    <i class="fas fa-hand-pointer text-purple-400 mt-1 mr-2"></i>
+                    <span>拖拽电荷移动位置</span>
+                </li>
+                <li class="flex items-start">
+                    <i class="fas fa-bolt text-purple-400 mt-1 mr-2"></i>
+                    <span>电场线实时计算</span>
+                </li>
+                <li class="flex items-start">
+                    <i class="fas fa-save text-purple-400 mt-1 mr-2"></i>
+                    <span>场景自动保存</span>
+                </li>
+                <li class="flex items-start">
+                    <i class="fas fa-ruler text-purple-400 mt-1 mr-2"></i>
+                    <span>20像素 = 1厘米（距离比例）</span>
+                </li>
+                <li class="flex items-start">
+                    <i class="fas fa-exclamation-triangle text-purple-400 mt-1 mr-2"></i>
+                    <span>电荷间距 &lt; 2cm 时不能视为点电荷</span>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <div id="properties-panel" class="floating-panel bg-panel backdrop-blur-sm p-4 rounded-xl shadow-2xl border border-gray-700">
+        <div class="panel-header flex justify-between items-center mb-3 cursor-move">
+            <h3 class="text-white text-lg font-semibold flex items-center">
+                <i class="fas fa-sliders-h mr-2 text-purple-400"></i> 电荷属性
+            </h3>
+            <div class="flex space-x-1">
+                <button id="properties-minimize" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-minus"></i>
+                </button>
+                <button id="properties-close" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+        <div id="properties-content">
+            <div class="space-y-3">
+                <div id="properties-info" class="text-gray-300 text-sm">
+                    选择一个电荷查看和编辑其属性
+                </div>
+                <div id="properties-form" class="hidden space-y-3">
+                    <div>
+                        <label class="text-gray-300 text-sm font-medium">电荷编号</label>
+                        <div id="charge-number" class="text-white font-medium"></div>
+                    </div>
+                    <div>
+                        <label class="text-gray-300 text-sm font-medium">电荷量 (C)</label>
+                        <input type="number" id="charge-quantity" step="0.1" 
+                               class="w-full bg-gray-800 text-white border border-gray-700 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="text-gray-300 text-sm font-medium">X 坐标</label>
+                            <input type="number" id="charge-x" step="1" 
+                                   class="w-full bg-gray-800 text-white border border-gray-700 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                        </div>
+                        <div>
+                            <label class="text-gray-300 text-sm font-medium">Y 坐标</label>
+                            <input type="number" id="charge-y" step="1" 
+                                   class="w-full bg-gray-800 text-white border border-gray-700 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                        </div>
+                    </div>
+                    <label class="flex items-center cursor-pointer">
+                        <input type="checkbox" id="charge-fixed" class="mr-2 h-4 w-4 text-purple-500 rounded focus:ring-purple-500">
+                        <span class="text-gray-300 text-sm">固定位置（不参与运动）</span>
+                    </label>
+                    <button id="btn-delete-charge" class="tool-btn w-full bg-red-600 text-white py-2 px-3 rounded-lg flex items-center justify-center font-medium">
+                        <i class="fas fa-trash mr-2"></i> 删除电荷
+                    </button>
+                    <button id="btn-apply-changes" class="tool-btn w-full bg-purple-600 text-white py-2 px-3 rounded-lg flex items-center justify-center font-medium">
+                        <i class="fas fa-save mr-2"></i> 应用更改
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="force-panel" class="floating-panel bg-panel backdrop-blur-sm p-4 rounded-xl shadow-2xl border border-gray-700">
+        <div class="panel-header flex justify-between items-center mb-3 cursor-move">
+            <h3 class="text-white text-lg font-semibold flex items-center">
+                <i class="fas fa-balance-scale mr-2 text-purple-400"></i> 库仑力计算
+            </h3>
+            <div class="flex space-x-1">
+                <button id="force-minimize" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-minus"></i>
+                </button>
+                <button id="force-close" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+        <div id="force-content">
+            <div class="space-y-3">
+                <div>
+                    <label class="text-gray-300 text-sm font-medium">选择电荷进行力计算</label>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <select id="charge-select-1" class="bg-gray-800 text-white border border-gray-700 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                        <option value="">选择电荷 1</option>
+                    </select>
+                    <select id="charge-select-2" class="bg-gray-800 text-white border border-gray-700 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                        <option value="">选择电荷 2</option>
+                    </select>
+                </div>
+                <button id="calculate-force-btn" class="tool-btn w-full bg-purple-600 text-white py-2 px-3 rounded-lg flex items-center justify-center font-medium">
+                    <i class="fas fa-calculator mr-2"></i> 计算库仑力
+                </button>
+                <div id="force-result" class="bg-gray-800 p-3 rounded-lg min-h-24">
+                    <div class="text-center text-gray-500 text-sm">
+                        请选择两个电荷并点击计算
+                    </div>
+                </div>
+                <div id="warning-message" class="text-yellow-400 text-xs hidden">
+                    <i class="fas fa-exclamation-triangle mr-1"></i>
+                    <span>警告：电荷间距小于2cm，不能视为点电荷！</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 浮动面板拖拽功能
+        function makePanelDraggable(panelId) {
+            const panel = document.getElementById(panelId);
+            const header = panel.querySelector('.panel-header');
+            let isDragging = false;
+            let currentX, currentY, initialX, initialY, xOffset = 0, yOffset = 0;
+
+            header.addEventListener('mousedown', dragStart);
+            document.addEventListener('mouseup', dragEnd);
+            document.addEventListener('mousemove', drag);
+
+            function dragStart(e) {
+                if (e.target.closest('button')) return; // 避免按钮点击触发拖拽
+                initialX = e.clientX - xOffset;
+                initialY = e.clientY - yOffset;
+                if (e.target === header || e.target.closest('.panel-header')) {
+                    isDragging = true;
+                }
+            }
+
+            function dragEnd() {
+                initialX = currentX;
+                initialY = currentY;
+                isDragging = false;
+            }
+
+            function drag(e) {
+                if (isDragging) {
+                    e.preventDefault();
+                    currentX = e.clientX - initialX;
+                    currentY = e.clientY - initialY;
+                    xOffset = currentX;
+                    yOffset = currentY;
+                    setPanelPosition(panel);
+                }
+            }
+
+            function setPanelPosition(element) {
+                element.style.transform = `translate(${currentX}px, ${currentY}px)`;
+            }
+        }
+
+        // 从localStorage加载面板位置
+        function loadPanelPositions() {
+            const positions = JSON.parse(localStorage.getItem('panelPositions') || '{}');
+            return positions;
+        }
+        
+        // 保存面板位置到localStorage
+        function savePanelPositions() {
+            const positions = {};
+            ['tools-panel', 'presets-panel', 'view-panel', 'instructions-panel'].forEach(panelId => {
+                const panel = document.getElementById(panelId);
+                const rect = panel.getBoundingClientRect();
+                positions[panelId] = {
+                    x: rect.left,
+                    y: rect.top,
+                    hidden: panel.style.display === 'none'
+                };
+            });
+            localStorage.setItem('panelPositions', JSON.stringify(positions));
+        }
+        
+        // 初始化所有浮动面板
+        const savedPositions = loadPanelPositions();
+        ['tools-panel', 'presets-panel', 'view-panel', 'instructions-panel', 'force-panel', 'properties-panel'].forEach(panelId => {
+            makePanelDraggable(panelId);
+            // 设置初始位置
+            const panel = document.getElementById(panelId);
+            panel.style.position = 'absolute';
+            panel.style.zIndex = '1000';
+            
+            if (savedPositions[panelId] && !savedPositions[panelId].hidden) {
+                panel.style.left = savedPositions[panelId].x + 'px';
+                panel.style.top = savedPositions[panelId].y + 'px';
+            } else {
+                // 根据面板类型设置默认位置
+                switch(panelId) {
+                    case 'tools-panel':
+                        panel.style.top = '20px';
+                        panel.style.left = '20px';
+                        break;
+                    case 'presets-panel':
+                        panel.style.top = '20px';
+                        panel.style.right = '20px';
+                        break;
+                    case 'view-panel':
+                        panel.style.bottom = '20px';
+                        panel.style.left = '20px';
+                        break;
+                    case 'instructions-panel':
+                        panel.style.bottom = '20px';
+                        panel.style.right = '20px';
+                        break;
+                    case 'force-panel':
+                        panel.style.top = '20px';
+                        panel.style.left = '220px'; // 在工具面板右侧
+                        break;
+                    case 'properties-panel':
+                        panel.style.top = '20px';
+                        panel.style.left = '420px'; // 在力计算面板右侧
+                        break;
+                }
+            }
+            
+            // 如果面板被隐藏，设置display为none
+            if (savedPositions[panelId] && savedPositions[panelId].hidden) {
+                panel.style.display = 'none';
+            }
+        });
+        
+        // 保存位置当窗口关闭或刷新
+        window.addEventListener('beforeunload', savePanelPositions);
+
+        // 面板最小化/关闭功能
+        function setupPanelControls(panelId) {
+            const panel = document.getElementById(panelId);
+            const content = panel.querySelector('[id$="-content"]');
+            const minimizeBtn = document.getElementById(`${panelId.split('-')[0]}-minimize`);
+            const closeBtn = document.getElementById(`${panelId.split('-')[0]}-close`);
+
+            if (minimizeBtn) {
+                minimizeBtn.addEventListener('click', () => {
+                    content.classList.toggle('hidden');
+                    const icon = minimizeBtn.querySelector('i');
+                    if (content.classList.contains('hidden')) {
+                        icon.className = 'fas fa-plus';
+                    } else {
+                        icon.className = 'fas fa-minus';
+                    }
+                });
+            }
+
+            if (closeBtn) {
+                closeBtn.addEventListener('click', () => {
+                    panel.style.display = 'none';
+                });
+            }
+        }
+
+        // 设置所有面板的控制按钮
+        ['tools', 'presets', 'view', 'instructions', 'force', 'properties'].forEach(name => {
+            setupPanelControls(`${name}-panel`);
+        });
+
+        // 电荷滑块值更新
+        const chargeSlider = document.getElementById('charge-slider');
+        const chargeValue = document.getElementById('charge-value');
+        
+        chargeSlider.addEventListener('input', () => {
+            const value = parseFloat(chargeSlider.value);
+            let displayValue;
+            if (Math.abs(value) % 1 === 0) {
+                displayValue = value >= 0 ? `+${value.toFixed(0)}` : `${value.toFixed(0)}`;
+            } else if (Math.abs(value) < 0.1) {
+                displayValue = value >= 0 ? `+${value.toExponential(2)}` : `${value.toExponential(2)}`;
+            } else {
+                displayValue = value >= 0 ? `+${value.toFixed(2)}` : `${value.toFixed(2)}`;
+            }
+            chargeValue.textContent = displayValue;
+        });
+    </script>
+
+    <script src="scripts/constants.js"></script>
+    <script src="scripts/utils.js"></script>
+    <script src="scripts/field.js"></script>
+    <script src="scripts/ui.js"></script>
+    <script src="scripts/main.js"></script>
+</body>
+</html>
