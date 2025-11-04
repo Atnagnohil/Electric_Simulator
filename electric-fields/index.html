@@ -285,9 +285,12 @@
             <select id="preset-selector" 
                     class="w-full bg-gray-800 text-white border border-gray-700 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-purple-500">
                 <option value="" class="bg-gray-800">选择预设场景</option>
+                <option value="single" class="bg-gray-800">单个点电荷</option>
                 <option value="dipole" class="bg-gray-800">电偶极子</option>
+                <option value="same_sign" class="bg-gray-800">同种电荷</option>
                 <option value="quadrupole" class="bg-gray-800">四极子</option>
                 <option value="line" class="bg-gray-800">线状分布</option>
+                <option value="capacitor" class="bg-gray-800">平行板电容器</option>
             </select>
             <button id="btn-load-preset" 
                     class="tool-btn w-full bg-purple-600 text-white py-2 px-3 rounded-lg flex items-center justify-center font-medium">
@@ -367,6 +370,61 @@
                     <span>电荷间距 &lt; 2cm 时不能视为点电荷</span>
                 </li>
             </ul>
+        </div>
+    </div>
+
+    <div id="settings-panel" class="floating-panel bg-panel backdrop-blur-sm p-4 rounded-xl shadow-2xl border border-gray-700">
+        <div class="panel-header flex justify-between items-center mb-3 cursor-move">
+            <h3 class="text-white text-lg font-semibold flex items-center">
+                <i class="fas fa-cog mr-2 text-purple-400"></i> 样式设置
+            </h3>
+            <div class="flex space-x-1">
+                <button id="settings-minimize" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-minus"></i>
+                </button>
+                <button id="settings-close" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+        <div id="settings-content" class="space-y-3">
+            <div>
+                <label class="text-gray-300 text-sm font-medium">电场线设置</label>
+                <div class="space-y-2 mt-2">
+                    <div>
+                        <label class="text-gray-400 text-xs">密度</label>
+                        <input type="range" id="field-line-density" min="8" max="32" value="16" 
+                               class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer slider">
+                    </div>
+                    <div>
+                        <label class="text-gray-400 text-xs">粗细</label>
+                        <input type="range" id="field-line-width" min="1" max="3" value="1.5" step="0.1"
+                               class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer slider">
+                    </div>
+                </div>
+            </div>
+            <div>
+                <label class="text-gray-300 text-sm font-medium">电荷显示</label>
+                <div class="space-y-2 mt-2">
+                    <label class="flex items-center cursor-pointer">
+                        <input type="checkbox" id="show-charge-value" checked class="mr-2 h-4 w-4 text-purple-500 rounded focus:ring-purple-500">
+                        <span class="text-gray-300 text-sm">显示电荷数值</span>
+                    </label>
+                    <label class="flex items-center cursor-pointer">
+                        <input type="checkbox" id="show-charge-number" checked class="mr-2 h-4 w-4 text-purple-500 rounded focus:ring-purple-500">
+                        <span class="text-gray-300 text-sm">显示电荷编号</span>
+                    </label>
+                </div>
+            </div>
+            <div>
+                <label class="text-gray-300 text-sm font-medium">背景设置</label>
+                <div class="space-y-2 mt-2">
+                    <div class="grid grid-cols-2 gap-2">
+                        <button id="bg-cosmic" class="tool-btn w-full bg-cosmic text-white py-2 px-2 rounded-lg text-xs">宇宙蓝</button>
+                        <button id="bg-deepspace" class="tool-btn w-full bg-deepspace text-white py-2 px-2 rounded-lg text-xs">深空紫</button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -535,7 +593,7 @@
         
         // 初始化所有浮动面板
         const savedPositions = loadPanelPositions();
-        ['tools-panel', 'presets-panel', 'view-panel', 'instructions-panel', 'force-panel', 'properties-panel'].forEach(panelId => {
+        ['tools-panel', 'presets-panel', 'view-panel', 'instructions-panel', 'force-panel', 'properties-panel', 'settings-panel'].forEach(panelId => {
             makePanelDraggable(panelId);
             // 设置初始位置
             const panel = document.getElementById(panelId);
@@ -571,6 +629,10 @@
                     case 'properties-panel':
                         panel.style.top = '20px';
                         panel.style.left = '420px'; // 在力计算面板右侧
+                        break;
+                    case 'settings-panel':
+                        panel.style.bottom = '20px';
+                        panel.style.left = '220px'; // 在视图面板右侧
                         break;
                 }
             }
