@@ -739,6 +739,54 @@ function bindForceCalculationEvents() {
     window.addEventListener('chargeUpdated', debouncedUpdate);
 }
 
+// 绑定样式设置面板事件
+function bindSettingsPanelEvents() {
+    const densitySlider = document.getElementById('field-line-density');
+    const widthSlider = document.getElementById('field-line-width');
+    const showValueCheckbox = document.getElementById('show-charge-value');
+    const showNumberCheckbox = document.getElementById('show-charge-number');
+    const bgCosmicBtn = document.getElementById('bg-cosmic');
+    const bgDeepspaceBtn = document.getElementById('bg-deepspace');
+    
+    if (densitySlider) {
+        densitySlider.addEventListener('input', (e) => {
+            styleSettings.fieldLineDensity = parseInt(e.target.value);
+        });
+    }
+    
+    if (widthSlider) {
+        widthSlider.addEventListener('input', (e) => {
+            styleSettings.fieldLineWidth = parseFloat(e.target.value);
+        });
+    }
+    
+    if (showValueCheckbox) {
+        showValueCheckbox.addEventListener('change', (e) => {
+            styleSettings.showChargeValue = e.target.checked;
+        });
+    }
+    
+    if (showNumberCheckbox) {
+        showNumberCheckbox.addEventListener('change', (e) => {
+            styleSettings.showChargeNumber = e.target.checked;
+        });
+    }
+    
+    if (bgCosmicBtn) {
+        bgCosmicBtn.addEventListener('click', () => {
+            styleSettings.backgroundColor = 'cosmic';
+            document.body.className = 'bg-cosmic min-h-screen flex flex-col font-body';
+        });
+    }
+    
+    if (bgDeepspaceBtn) {
+        bgDeepspaceBtn.addEventListener('click', () => {
+            styleSettings.backgroundColor = 'deepspace';
+            document.body.className = 'bg-deepspace min-h-screen flex flex-col font-body';
+        });
+    }
+}
+
 // 绑定属性面板事件
 function bindPropertiesPanelEvents() {
     const applyBtn = document.getElementById('btn-apply-changes');

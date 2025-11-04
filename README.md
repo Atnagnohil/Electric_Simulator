@@ -21,18 +21,10 @@ electric-fields/
 │   ├── field.css             # Canvas area styles
 │   └── controls.css          # Control panel styles
 │
-├── scripts/
-│   ├── main.js               # Entry point and initialization
-│   ├── field.js              # Physics calculations and canvas drawing
-│   ├── ui.js                 # UI interaction logic
-│   ├── utils.js              # Utility functions
-│   └── constants.js          # Global constants
 │
 ├── data/
 │   └── presets.json          # Preset configurations for common scenarios
 │
-├── assets/                   # Icons, fonts, images
-├── docs/                     # Documentation
 └── README.md                 # This file
 ```
 
