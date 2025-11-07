@@ -117,6 +117,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // 绑定属性面板事件
     bindPropertiesPanelEvents();
     
+    // 绑定样式设置事件
+    bindSettingsPanelEvents();
+    
     // 初始化按钮UI
     window.updateActiveButtonUI(currentTool);
     window.updateCrosshairVisibility();
